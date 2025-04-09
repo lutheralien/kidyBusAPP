@@ -1,7 +1,7 @@
 // src/store/slices/userSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { User, UserState } from '../../types/user.types';
-import { fetchUserProfile, updateUserProfile } from '@/src/api/authApi';
+import { fetchUserProfile, updateUserProfile } from '@/src/api/api.service';
 
 // Define the initial state
 const initialState: UserState = {

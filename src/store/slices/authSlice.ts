@@ -1,6 +1,6 @@
 // src/store/slices/authSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { login, signup, logout } from '../../api/authApi';
+import { login, signup, logout } from '../../api/api.service';
 import { User, AuthState } from '../../types/user.types';
 
 // Define the initial state

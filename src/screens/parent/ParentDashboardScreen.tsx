@@ -10,10 +10,10 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { getUserProfile } from '../../store/slices/userSlice';
 
 interface UserDashboardScreenProps {
-  navigation: UserNavigationProp<typeof ROUTES.USER_DASHBOARD>;
+  navigation: UserNavigationProp<typeof ROUTES.PARENT_DASHBOARD>;
 }
 
-const UserDashboardScreen: React.FC<UserDashboardScreenProps> = ({ navigation }) => {
+const ParentDashboardScreen: React.FC<UserDashboardScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const dispatch = useAppDispatch();
   const data = useAppSelector(state => state.user);
@@ -78,11 +78,6 @@ const UserDashboardScreen: React.FC<UserDashboardScreenProps> = ({ navigation })
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Name:</Text>
           <Text style={styles.infoValue}>{profile?.name || user?.name || 'Not set'}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Email:</Text>
-          <Text style={styles.infoValue}>{profile?.email || user?.email || 'Not set'}</Text>
         </View>
         
         <View style={styles.infoRow}>
@@ -263,4 +258,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UserDashboardScreen;
+export default ParentDashboardScreen;

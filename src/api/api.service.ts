@@ -2,7 +2,7 @@
 // src/api/authApi.ts
 import { ApiErrorResponse, ApiSuccessResponse } from '../custom';
 import { User } from '../types/user.types';
-import apiClient from './apiClient';
+import apiClient from './api.client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 

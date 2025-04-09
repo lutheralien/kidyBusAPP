@@ -26,7 +26,7 @@ import {
 import { AuthNavigationProp } from "@/src/types/navigation.types";
 import { Card, Input } from "../../components/common";
 import { isValidPhoneNumber } from "@/src/utils/storage";
-import { sendOTP as sms } from "../../api/authApi";
+import { sendOTP as sms } from "../../api/api.service";
 
 interface ForgotPasswordProps {
   navigation: AuthNavigationProp<typeof ROUTES.FORGOT_PASSWORD>;

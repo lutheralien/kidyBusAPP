@@ -3,7 +3,7 @@
  import { createStackNavigator } from '@react-navigation/stack';
  import { ROUTES } from '../constants/routes';
  import { UserStackParamList } from '../types/navigation.types';
-import { UserDashboardScreen, ProfileScreen, SettingsScreen } from '../screens';
+import { ParentDashboardScreen, ProfileScreen, SettingsScreen } from '../screens';
  
  
  const Stack = createStackNavigator<UserStackParamList>();
@@ -11,14 +11,14 @@ import { UserDashboardScreen, ProfileScreen, SettingsScreen } from '../screens';
  const ParentNavigator: React.FC = () => {
    return (
      <Stack.Navigator
-       initialRouteName={ROUTES.USER_DASHBOARD}
+       initialRouteName={ROUTES.PARENT_DASHBOARD}
        screenOptions={{
          headerShown: false,
        }}
      >
        <Stack.Screen 
-         name={ROUTES.USER_DASHBOARD} 
-         component={UserDashboardScreen}
+         name={ROUTES.PARENT_DASHBOARD} 
+         component={ParentDashboardScreen}
          options={{ title: 'Parent Dashboard' }}
        />
        <Stack.Screen 

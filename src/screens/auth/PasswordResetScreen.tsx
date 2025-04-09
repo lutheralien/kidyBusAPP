@@ -28,7 +28,7 @@ import {
 import { AuthNavigationProp } from "@/src/types/navigation.types";
 import { Card, Input } from "../../components/common";
 import { isValidPassword } from "@/src/utils/storage";
-import { sendOTP, verifyOTP, resetPassword } from "../../api/authApi";
+import { sendOTP, verifyOTP, resetPassword } from "../../api/api.service";
 
 // Default wait time for OTP resend in seconds
 const defaultWaitTime = 60;

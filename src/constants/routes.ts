@@ -10,15 +10,14 @@ export const ROUTES = {
     FORGOT_PASSWORD: 'ForgotPassword',
     OTP: 'otp',
     
-    // Admin routes
+    // DRIVER routes
     DRIVER: 'Driver',
-    ADMIN_DASHBOARD: 'AdminDashboard',
-    MANAGE_USERS: 'ManageUsers',
-    USER_DETAILS: 'UserDetails',
+    DRIVER_DASHBOARD: 'DriverDashboard',
+  
     
-    // User routes
+    // PARENT routes
     PARENT: 'Parent',
-    USER_DASHBOARD: 'UserDashboard',
+    PARENT_DASHBOARD: 'ParentDashboard',
     PROFILE: 'Profile',
     SETTINGS: 'Settings',
   };

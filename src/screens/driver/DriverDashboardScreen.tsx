@@ -13,11 +13,11 @@ import { COLORS, FONTS, SIZES } from '../../constants/theme';
 import { ROUTES } from '../../constants/routes';
 import { AdminNavigationProp } from '../../types/navigation.types';
 import { useAuth } from '../../hooks/useAuth';
-import { fetchAllUsers } from '@/src/api/authApi';
+import { fetchAllUsers } from '@/src/api/api.service';
 
 
 interface AdminDashboardScreenProps {
-  navigation: AdminNavigationProp<typeof ROUTES.ADMIN_DASHBOARD>;
+  navigation: AdminNavigationProp<typeof ROUTES.DRIVER_DASHBOARD>;
 }
 
 // Stats interface
@@ -28,7 +28,7 @@ interface DashboardStats {
   adminUsers: number;
 }
 
-const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ navigation }) => {
+const DriverDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ navigation }) => {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
@@ -413,4 +413,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AdminDashboardScreen;
+export default DriverDashboardScreen;

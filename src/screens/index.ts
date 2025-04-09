@@ -10,8 +10,8 @@ export { default as SplashScreen } from './common/SplashScreen';
 export { default as SettingsScreen } from './common/SettingsScreen';
 
 // Admin screens
-export { default as AdminDashboardScreen } from './driver/AdminDashboardScreen';
+export { default as DriverDashboardScreen } from './driver/DriverDashboardScreen';
 
 // User screens
-export { default as UserDashboardScreen } from './parent/UserDashboardScreen';
+export { default as ParentDashboardScreen } from './parent/ParentDashboardScreen';
 export { default as ProfileScreen } from './user/ProfileScreen';
