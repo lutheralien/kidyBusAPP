@@ -19,6 +19,9 @@ export const login = async (credentials: {
         console.log('Login Attempt:', credentials);
 
         const response = await apiClient.post('/common/auth/login', credentials);
+        console.log(response.data.token);
+        console.log(response.data.refreshToken);
+        
         // Store token and refresh token
         if (response.data.token) {
             await AsyncStorage.setItem('token', response.data.token);

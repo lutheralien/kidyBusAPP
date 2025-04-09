@@ -7,7 +7,7 @@ interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
     _retry?: boolean;
 }
 
-const BASE_URL = 'http://172.20.10.2:3005/api/v1';
+const BASE_URL = 'http://192.168.1.49:3005/api/v1';
 // Create axios instance
 const apiClient = axios.create({
     baseURL: BASE_URL,
@@ -41,46 +41,49 @@ apiClient.interceptors.response.use(
         return response;
     },
     async (error: unknown) => {
-        console.error('Response Error:', error);
+        console.log('Response Error:', error);
 
         if (axios.isAxiosError(error) && error.config) {
             const originalRequest = error.config as ExtendedAxiosRequestConfig;
 
-            // Log detailed error information
-            if (error.response) {
-                console.error('Response Error Details:', {
-                    status: error.response.status,
-                    data: error.response.data,
-                    headers: error.response.headers
-                });
-            }
-
-            // Handle 401 (Unauthorized) errors with token refresh
-            if (error.response?.status === 401 && !originalRequest._retry) {
+            // Handle both 401 (Unauthorized) and 403 (Forbidden) errors with token refresh
+            if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
                 originalRequest._retry = true;
 
                 try {
                     // Attempt to refresh the token
                     const refreshToken = await AsyncStorage.getItem('refreshToken');
-
-                    if (refreshToken) {
-                        const response = await axios.post(`${BASE_URL}/auth/refresh`, {
-                            refreshToken,
-                        });
-
-                        const { token } = response.data;
-
-                        // Save new token
-                        await AsyncStorage.setItem('token', token);
-
-                        // Update authorization header
-                        apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
-                        originalRequest.headers = originalRequest.headers || {};
-                        originalRequest.headers.Authorization = `Bearer ${token}`;
-
-                        // Retry original request
-                        return apiClient(originalRequest);
+                    
+                    if (!refreshToken) {
+                        console.error('No refresh token available');
+                        // Force logout or navigate to login
+                        throw new Error('Authentication required');
                     }
+
+                    // Make the refresh token request
+                    const response = await axios.post(`${BASE_URL}/token/refresh`, {
+                        refreshToken,
+                    });
+                    // Verify we received a new token
+                    if (!response.data.token) {
+                        throw new Error('No token received from refresh endpoint');
+                    }
+
+                    const { token, refreshToken: rToken } = response.data;
+
+                    // Save new token
+                    await AsyncStorage.setItem('token', token);
+                    await AsyncStorage.setItem('refreshToken', rToken);
+
+                    // Update authorization header
+                    apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+                    
+                    // Ensure headers object exists
+                    originalRequest.headers = originalRequest.headers || {};
+                    originalRequest.headers.Authorization = `Bearer ${token}`;
+
+                    // Retry original request
+                    return apiClient(originalRequest);
                 } catch (refreshError) {
                     console.error('Token refresh failed:', refreshError);
 
@@ -88,11 +91,18 @@ apiClient.interceptors.response.use(
                     await AsyncStorage.removeItem('token');
                     await AsyncStorage.removeItem('refreshToken');
 
+                    // Create an authentication error
+                    const authError: any = new Error('Authentication failed. Please log in again.');
+                    authError.requiresLogin = true;
+                    
                     // You could add navigation logic here if needed
+                    // For example: navigate('/login');
+                    
+                    return Promise.reject(authError);
                 }
             }
 
-            // Handle 400 errors with proper error enhancement
+            // Handle other error responses with proper error enhancement
             if (error.response?.data) {
                 // Create an enhanced error object
                 const enhancedError: any = new Error(
@@ -115,9 +125,11 @@ apiClient.interceptors.response.use(
         } else if (error instanceof Error) {
             // Handle non-Axios errors (like network errors)
             console.error('Network or other error:', error.message);
+            return Promise.reject(error);
         } else {
             // Handle unknown error types
             console.error('Unknown error type:', error);
+            return Promise.reject(new Error('An unknown error occurred'));
         }
 
         // Fallback for unhandled cases
