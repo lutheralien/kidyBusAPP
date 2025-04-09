@@ -33,7 +33,7 @@ export const Storage = {
       }
       return null;
     } catch (error) {
-      console.log('Error retrieving data', error);
+      console.log('Error retrieving data', error,key);
       return null;
     }
   },

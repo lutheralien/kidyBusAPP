@@ -85,14 +85,16 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ skipAuthCheck = false }) =>
         // Check for stored auth data
         const userData = await Storage.getItem<User>("user");
         const token = await Storage.getItem<string>("token");
+        const refreshToken = await Storage.getItem<string>("refreshToken");
         const role = await Storage.getItem<string>("role");
 
-        if (userData && token && role) {
+        if (userData && token && refreshToken && role && refreshToken) {
           // If we have the required data, restore authentication state
           dispatch(
             setCredentials({
               user: userData,
               token,
+              refreshToken,
               role,
             })
           );

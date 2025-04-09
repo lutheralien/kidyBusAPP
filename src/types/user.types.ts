@@ -21,7 +21,7 @@ export interface User {
 export interface AuthState {
     user: User | null;
     token: string | null;
-    rtoken: string | null;
+    refreshToken: string | null;
     role: string | null;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;

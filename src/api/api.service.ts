@@ -2,8 +2,8 @@
 // src/api/authApi.ts
 import { ApiErrorResponse, ApiSuccessResponse } from '../custom';
 import { User } from '../types/user.types';
+import Storage from '../utils/storage';
 import apiClient from './api.client';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 
@@ -16,24 +16,23 @@ export const login = async (credentials: {
     userType: "DRIVER" | "PARENT";
 }): Promise<ApiSuccessResponse | ApiErrorResponse> => {
     try {
-        console.log('Login Attempt:', credentials);
-
         const response = await apiClient.post('/common/auth/login', credentials);
-        console.log(response.data.token);
-        console.log(response.data.refreshToken);
-        
         // Store token and refresh token
         if (response.data.token) {
-            await AsyncStorage.setItem('token', response.data.token);
+            await Storage.setItem('token', response.data.token);
         }
 
         if (response.data.refreshToken) {
-            await AsyncStorage.setItem('refreshToken', response.data.refreshToken);
+            await Storage.setItem('refreshToken', response.data.refreshToken);
+        }
+        
+        // Store user role
+        if (response.data.data.role) {
+            await Storage.setItem('role', response.data.data.role);
         }
 
-        // Store user type
-        if (response.data.userType) {
-            await AsyncStorage.setItem('userType', response.data.userType);
+        if (response.data.data) {
+            await Storage.setItem('user', response.data.data);
         }
 
         return { success: true, data: response.data };
@@ -74,11 +73,11 @@ export const signup = async (userData: { email: string; password: string; name: 
 
     // Store token and refresh token
     if (response.data.token) {
-        await AsyncStorage.setItem('token', response.data.token);
+        await Storage.setItem('token', response.data.token);
     }
 
     if (response.data.refreshToken) {
-        await AsyncStorage.setItem('refreshToken', response.data.refreshToken);
+        await Storage.setItem('refreshToken', response.data.refreshToken);
     }
 
     return response;
@@ -87,11 +86,11 @@ export const signup = async (userData: { email: string; password: string; name: 
 // User logout
 export const logout = async () => {
     // Get refresh token before removing it
-    const refreshToken = await AsyncStorage.getItem('refreshToken');
-    
+    const refreshToken = await Storage.getItem('refreshToken');
     // Clear stored tokens
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem('refreshToken');
+    await Storage.removeItem('token');
+    await Storage.removeItem('refreshToken');
+    await Storage.removeItem('role');
 
     // Optional: Call logout endpoint with refresh token in body
     try {

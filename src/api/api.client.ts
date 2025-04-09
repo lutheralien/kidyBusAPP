@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Storage from '../utils/storage';
 
 // Extend the AxiosRequestConfig interface
 interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
@@ -20,7 +20,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
     async (config) => {
         // Get token from storage
-        const token = await AsyncStorage.getItem('token');
+        const token = await Storage.getItem('token');
 
         // If token exists, add to headers
         if (token) {
@@ -41,8 +41,6 @@ apiClient.interceptors.response.use(
         return response;
     },
     async (error: unknown) => {
-        console.log('Response Error:', error);
-
         if (axios.isAxiosError(error) && error.config) {
             const originalRequest = error.config as ExtendedAxiosRequestConfig;
 
@@ -52,7 +50,8 @@ apiClient.interceptors.response.use(
 
                 try {
                     // Attempt to refresh the token
-                    const refreshToken = await AsyncStorage.getItem('refreshToken');
+                    const refreshToken = await Storage.getItem('refreshToken');
+                    console.log('refreshToken',refreshToken);
                     
                     if (!refreshToken) {
                         console.error('No refresh token available');
@@ -72,8 +71,8 @@ apiClient.interceptors.response.use(
                     const { token, refreshToken: rToken } = response.data;
 
                     // Save new token
-                    await AsyncStorage.setItem('token', token);
-                    await AsyncStorage.setItem('refreshToken', rToken);
+                    await Storage.setItem('token', token);
+                    await Storage.setItem('refreshToken', rToken);
 
                     // Update authorization header
                     apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
@@ -88,8 +87,8 @@ apiClient.interceptors.response.use(
                     console.error('Token refresh failed:', refreshError);
 
                     // Clear tokens on refresh failure
-                    await AsyncStorage.removeItem('token');
-                    await AsyncStorage.removeItem('refreshToken');
+                    await Storage.removeItem('token');
+                    await Storage.removeItem('refreshToken');
 
                     // Create an authentication error
                     const authError: any = new Error('Authentication failed. Please log in again.');

@@ -7,7 +7,7 @@ import { User, AuthState } from '../../types/user.types';
 const initialState: AuthState = {
   user: null,
   token: '',
-  rtoken: '',
+  refreshToken: '',
   role: '',
   status: 'idle',
   error: null,
@@ -20,6 +20,8 @@ export const loginUser = createAsyncThunk(
     async (credentials: { phone: string; password: string, userType: "DRIVER" | "PARENT" }, { rejectWithValue }) => {
       try {
         const response = await login(credentials);
+        console.log('response.success',response.success);
+        
         
         // The API might be returning {success: false, message: ...} which isn't an error
         // but rather a failed login that needs to be handled
@@ -73,11 +75,12 @@ const authSlice = createSlice({
   reducers: {
     setCredentials: (
       state,
-      action: PayloadAction<{ user: User; token: string; role: string }>
+      action: PayloadAction<{ user: User; token: string; role: string; refreshToken: string; }>
     ) => {
-      const { user, token, role } = action.payload;
+      const { user, token, role, refreshToken } = action.payload;
       state.user = user;
       state.token = token;
+      state.refreshToken = refreshToken;
       state.role = role;
       state.isAuthenticated = true;
     },
@@ -99,7 +102,7 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.user = action.payload.data;
         state.token = action.payload.token;
-        state.rtoken = action.payload.refreshToken;
+        state.refreshToken = action.payload.refreshToken;
         state.role = action.payload.data.role;
         state.isAuthenticated = true;
       })
