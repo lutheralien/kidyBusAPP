@@ -1,6 +1,4 @@
-
-// src/screens/user/ProfileScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,38 +8,41 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { Button, Input, Card } from '../../components/common';
-import { COLORS, FONTS, SIZES } from '../../constants/theme';
-import { ROUTES } from '../../constants/routes';
-import { UserNavigationProp } from '../../types/navigation.types';
-import { useAuth } from '../../hooks/useAuth';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { getUserProfile, updateProfile } from '../../store/slices/userSlice';
-import { isValidName, isValidEmail, isValidPhone } from '@/src/utils/storage';
-
+} from "react-native";
+import { Button, Input, Card } from "../../components/common";
+import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { ROUTES } from "../../constants/routes";
+import { ParentNavigationProp } from "../../types/navigation.types";
+import { useAuth } from "../../hooks/useAuth";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { getUserProfile, updateProfile } from "../../store/slices/userSlice";
+import { isValidName, isValidEmail, isValidPhone } from "@/src/utils/storage";
+import Toast from "react-native-toast-message";
 
 interface ProfileScreenProps {
-  navigation: UserNavigationProp<typeof ROUTES.PROFILE>;
+  navigation: ParentNavigationProp<typeof ROUTES.PROFILE>;
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const dispatch = useAppDispatch();
-  const { profile, status } = useAppSelector(state => state.user);
-  
+  const { profile, status } = useAppSelector((state) => state.user);
+
   // Form state
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: "",
+    email: "",
+    phone: "",
   });
   const [errors, setErrors] = useState<{
     name?: string;
     email?: string;
     phone?: string;
   }>({});
+
+  // Check if user is a driver
+  const isDriver = role === "driver";
 
   // Load user profile on component mount
   useEffect(() => {
@@ -54,9 +55,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   useEffect(() => {
     if (profile) {
       setFormData({
-        name: profile.name || '',
-        email: profile.email || '',
-        phone: profile.phone || '',
+        name: profile.name || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
       });
     }
   }, [profile]);
@@ -79,21 +80,23 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
     // Name validation
     if (!formData.name) {
-      newErrors.name = 'Name is required';
+      newErrors.name = "Name is required";
     } else if (!isValidName(formData.name)) {
-      newErrors.name = 'Name must be at least 2 characters';
+      newErrors.name = "Name must be at least 2 characters";
     }
 
-    // Email validation
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!isValidEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
+    // Email validation (only for drivers)
+    if (isDriver) {
+      if (!formData.email) {
+        newErrors.email = "Email is required";
+      } else if (!isValidEmail(formData.email)) {
+        newErrors.email = "Please enter a valid email";
+      }
     }
 
     // Phone validation (optional field)
     if (formData.phone && !isValidPhone(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
+      newErrors.phone = "Please enter a valid phone number";
     }
 
     setErrors(newErrors);
@@ -106,9 +109,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       // If we're exiting edit mode without saving, reset the form
       if (profile) {
         setFormData({
-          name: profile.name || '',
-          email: profile.email || '',
-          phone: profile.phone || '',
+          name: profile.name || "",
+          email: profile.email || "",
+          phone: profile.phone || "",
         });
       }
       setErrors({});
@@ -122,25 +125,36 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
     if (user?._id) {
       try {
-        await dispatch(updateProfile({
-          id: user._id,
-          ...formData,
-        })).unwrap();
-        
+        await dispatch(
+          updateProfile({
+            _id: user._id,
+            ...formData,
+            role: user.role, // Include the role from your useAuth hook
+          })
+        ).unwrap();
+
         setIsEditing(false);
-        Alert.alert('Success', 'Profile updated successfully');
+        Toast.show({
+          type: "success",
+          text1: "Profile Update",
+          text2: "Profile updated successfully",
+        });
       } catch (error) {
-        Alert.alert('Error', 'Failed to update profile. Please try again.');
+        Toast.show({
+          type: "error",
+          text1: "Failed to Update Profile",
+          text2: "Failed to update profile. Please try again",
+        });
       }
     }
   };
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
@@ -148,7 +162,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <Text style={styles.headerTitle}>Your Profile</Text>
           <TouchableOpacity onPress={toggleEditMode}>
             <Text style={styles.editToggleText}>
-              {isEditing ? 'Cancel' : 'Edit Profile'}
+              {isEditing ? "Cancel" : "Edit Profile"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -158,7 +172,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
-                {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
+                {formData.name ? formData.name.charAt(0).toUpperCase() : "U"}
               </Text>
             </View>
             {isEditing && (
@@ -176,23 +190,25 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <Input
                   label="Name"
                   value={formData.name}
-                  onChangeText={(value) => handleChange('name', value)}
+                  onChangeText={(value) => handleChange("name", value)}
                   error={errors.name}
                 />
 
-                <Input
-                  label="Email"
-                  value={formData.email}
-                  onChangeText={(value) => handleChange('email', value)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  error={errors.email}
-                />
+                {isDriver && (
+                  <Input
+                    label="Email"
+                    value={formData.email}
+                    onChangeText={(value) => handleChange("email", value)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    error={errors.email}
+                  />
+                )}
 
                 <Input
                   label="Phone (optional)"
                   value={formData.phone}
-                  onChangeText={(value) => handleChange('phone', value)}
+                  onChangeText={(value) => handleChange("phone", value)}
                   keyboardType="phone-pad"
                   error={errors.phone}
                 />
@@ -200,7 +216,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <Button
                   title="Save Changes"
                   onPress={handleSaveProfile}
-                  loading={status === 'loading'}
+                  loading={status === "loading"}
                   style={styles.saveButton}
                 />
               </>
@@ -209,30 +225,40 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Name</Text>
-                  <Text style={styles.infoValue}>{profile?.name || 'Not set'}</Text>
+                  <Text style={styles.infoValue}>
+                    {profile?.name || "Not set"}
+                  </Text>
                 </View>
 
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Email</Text>
-                  <Text style={styles.infoValue}>{profile?.email || 'Not set'}</Text>
-                </View>
+                {isDriver && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Email</Text>
+                    <Text style={styles.infoValue}>
+                      {profile?.email || "Not set"}
+                    </Text>
+                  </View>
+                )}
 
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Phone</Text>
-                  <Text style={styles.infoValue}>{profile?.phone || 'Not set'}</Text>
+                  <Text style={styles.infoValue}>
+                    {profile?.phone || "Not set"}
+                  </Text>
                 </View>
 
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Role</Text>
-                  <Text style={styles.infoValue}>{profile?.role || 'User'}</Text>
+                  <Text style={styles.infoValue}>
+                    {profile?.role || "User"}
+                  </Text>
                 </View>
 
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Member Since</Text>
                   <Text style={styles.infoValue}>
-                    {profile?.createdAt 
-                      ? new Date(profile.createdAt).toLocaleDateString() 
-                      : 'Unknown'}
+                    {profile?.createdAt
+                      ? new Date(profile.createdAt).toLocaleDateString()
+                      : "Unknown"}
                   </Text>
                 </View>
               </>
@@ -243,23 +269,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         {/* Account Management Section */}
         <Card style={styles.accountCard}>
           <Text style={styles.sectionTitle}>Account Management</Text>
-          
+
           <Button
             title="Change Password"
-            onPress={() => {}}
-            variant="outline"
-            style={styles.accountButton}
-          />
-          
-          <Button
-            title="Privacy Settings"
-            onPress={() => {}}
-            variant="outline"
-            style={styles.accountButton}
-          />
-          
-          <Button
-            title="Notification Preferences"
             onPress={() => {}}
             variant="outline"
             style={styles.accountButton}
@@ -279,9 +291,9 @@ const styles = StyleSheet.create({
     padding: SIZES.m,
   },
   headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: SIZES.m,
   },
   headerTitle: {
@@ -298,7 +310,7 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.m,
   },
   avatarContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: SIZES.m,
   },
   avatar: {
@@ -306,8 +318,8 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: SIZES.s,
   },
   avatarText: {
@@ -327,7 +339,7 @@ const styles = StyleSheet.create({
     marginTop: SIZES.m,
   },
   infoRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingVertical: SIZES.s,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.extraLightGray,
@@ -336,7 +348,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: FONTS.body2,
     color: COLORS.textSecondary,
-    width: '40%',
+    width: "40%",
   },
   infoValue: {
     fontFamily: FONTS.regular,

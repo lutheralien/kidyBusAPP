@@ -1,13 +1,12 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { Platform } from 'react-native';
 import Storage from '../utils/storage';
+import { BASE_URL } from '../custom';
 
 // Extend the AxiosRequestConfig interface
 interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
     _retry?: boolean;
 }
 
-const BASE_URL = 'http://192.168.1.49:3005/api/v1';
 // Create axios instance
 const apiClient = axios.create({
     baseURL: BASE_URL,
@@ -51,8 +50,7 @@ apiClient.interceptors.response.use(
                 try {
                     // Attempt to refresh the token
                     const refreshToken = await Storage.getItem('refreshToken');
-                    console.log('refreshToken',refreshToken);
-                    
+
                     if (!refreshToken) {
                         console.error('No refresh token available');
                         // Force logout or navigate to login

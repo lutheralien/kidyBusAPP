@@ -1,6 +1,6 @@
 // src/store/slices/authSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { login, signup, logout } from '../../api/api.service';
+import { login, logout } from '../../api/api.service';
 import { User, AuthState } from '../../types/user.types';
 
 // Define the initial state
@@ -44,17 +44,6 @@ export const loginUser = createAsyncThunk(
       }
     }
   );
-export const signupUser = createAsyncThunk(
-  'auth/signup',
-  async (userData: { email: string; password: string; name: string }, { rejectWithValue }) => {
-    try {
-      const response = await signup(userData);
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Signup failed');
-    }
-  }
-);
 
 export const logoutUser = createAsyncThunk(
   'auth/logout',
@@ -107,22 +96,6 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
       })
       .addCase(loginUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload as string;
-      })
-      // Signup cases
-      .addCase(signupUser.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(signupUser.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.user = action.payload.data;
-        state.token = action.payload.token;
-        state.role = action.payload.role;
-        state.isAuthenticated = true;
-      })
-      .addCase(signupUser.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload as string;
       })

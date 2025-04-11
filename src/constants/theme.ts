@@ -64,6 +64,8 @@ export const FONTS = {
   h6: 14,
   body1: 16,
   body2: 14,
+  body3: 12,
+  body4: 10,
   caption: 12,
   button: 16,
   

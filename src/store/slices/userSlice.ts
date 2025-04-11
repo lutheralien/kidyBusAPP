@@ -25,7 +25,7 @@ export const getUserProfile = createAsyncThunk(
 
 export const updateProfile = createAsyncThunk(
   'user/updateProfile',
-  async (userData: Partial<User>, { rejectWithValue }) => {
+  async (userData: Partial<User> & { role?: string }, { rejectWithValue }) => {
     try {
       const response = await updateUserProfile(userData);
       return response.data;
@@ -34,6 +34,7 @@ export const updateProfile = createAsyncThunk(
     }
   }
 );
+
 
 // Create slice
 const userSlice = createSlice({
@@ -48,7 +49,6 @@ const userSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Get profile cases
       .addCase(getUserProfile.pending, (state) => {
         state.status = 'loading';
         state.error = null;
@@ -61,14 +61,13 @@ const userSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       })
-      // Update profile cases
       .addCase(updateProfile.pending, (state) => {
         state.status = 'loading';
         state.error = null;
       })
       .addCase(updateProfile.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.profile = action.payload;
+        state.profile = action.payload.data;
       })
       .addCase(updateProfile.rejected, (state, action) => {
         state.status = 'failed';

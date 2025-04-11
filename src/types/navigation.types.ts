@@ -1,37 +1,37 @@
-
-// src/types/navigation.types.ts
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { ROUTES } from '../constants/routes';
 
 // Auth stack parameter list
 export type AuthStackParamList = {
-  Login: undefined;
-  Signup: undefined;
-  ForgotPassword: undefined;
+  [ROUTES.LOGIN]: undefined;
+  [ROUTES.SIGNUP]: undefined;
+  [ROUTES.FORGOT_PASSWORD]: undefined;
 };
 
-// Admin stack parameter list
-export type AdminStackParamList = {
-  AdminDashboard: undefined;
-  ManageUsers: undefined;
-  UserDetails: { userId: string };
-  Settings: undefined;
+// Driver stack parameter list
+export type DriverStackParamList = {
+  [ROUTES.DRIVER_TAB]: undefined;
+  [ROUTES.DRIVER_DASHBOARD]: undefined;
+  [ROUTES.SETTINGS]: undefined;
+  [ROUTES.DRIVER_MAP]: { tripId: string };
 };
 
-// User stack parameter list
-export type UserStackParamList = {
-  UserDashboard: undefined;
-  Profile: undefined;
-  Settings: undefined;
+// Parent stack parameter list
+export type ParentStackParamList = {
+  [ROUTES.PARENT_TAB]: undefined;
+  [ROUTES.PARENT_DASHBOARD]: undefined;
+  [ROUTES.PROFILE]: undefined;
+  [ROUTES.SETTINGS]: undefined;
 };
 
 // App stack parameter list (combines all stacks)
 export type AppStackParamList = {
-  Splash: undefined;
-  Auth: undefined;
-  Admin: undefined;
-  User: undefined;
+  [ROUTES.SPLASH]: undefined;
+  [ROUTES.AUTH]: undefined;
+  [ROUTES.DRIVER]: undefined;
+  [ROUTES.PARENT]: undefined;
 };
 
 // Navigation prop types
@@ -40,13 +40,13 @@ export type AuthNavigationProp<T extends keyof AuthStackParamList> = StackNaviga
   T
 >;
 
-export type AdminNavigationProp<T extends keyof AdminStackParamList> = StackNavigationProp<
-  AdminStackParamList,
+export type DriverNavigationProp<T extends keyof DriverStackParamList> = StackNavigationProp<
+  DriverStackParamList,
   T
 >;
 
-export type UserNavigationProp<T extends keyof UserStackParamList> = StackNavigationProp<
-  UserStackParamList,
+export type ParentNavigationProp<T extends keyof ParentStackParamList> = StackNavigationProp<
+  ParentStackParamList,
   T
 >;
 
@@ -61,17 +61,36 @@ export type AuthRouteProp<T extends keyof AuthStackParamList> = RouteProp<
   T
 >;
 
-export type AdminRouteProp<T extends keyof AdminStackParamList> = RouteProp<
-  AdminStackParamList,
+export type DriverRouteProp<T extends keyof DriverStackParamList> = RouteProp<
+  DriverStackParamList,
   T
 >;
 
-export type UserRouteProp<T extends keyof UserStackParamList> = RouteProp<
-  UserStackParamList,
+export type ParentRouteProp<T extends keyof ParentStackParamList> = RouteProp<
+  ParentStackParamList,
   T
 >;
 
 export type AppRouteProp<T extends keyof AppStackParamList> = RouteProp<
   AppStackParamList,
+  T
+>;
+
+// Parent tab parameter list
+export type ParentTabParamList = {
+  [ROUTES.PARENT_DASHBOARD]: undefined;
+  [ROUTES.PROFILE]: undefined;
+  [ROUTES.SETTINGS]: undefined;
+};
+
+// Navigation prop type for bottom tabs
+export type ParentTabNavigationProp<T extends keyof ParentTabParamList> = BottomTabNavigationProp<
+  ParentTabParamList,
+  T
+>;
+
+// Route prop type for bottom tabs
+export type ParentTabRouteProp<T extends keyof ParentTabParamList> = RouteProp<
+  ParentTabParamList,
   T
 >;

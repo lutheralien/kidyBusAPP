@@ -8,10 +8,14 @@ export { default as ForgotPasswordScreen } from '../screens/auth/ForgotPasswordS
 // Common screens
 export { default as SplashScreen } from './common/SplashScreen';
 export { default as SettingsScreen } from './common/SettingsScreen';
+export { default as ProfileScreen } from './common/ProfileScreen';
 
-// Admin screens
+// Driver screens
 export { default as DriverDashboardScreen } from './driver/DriverDashboardScreen';
+export { default as DriversTodaysTripsScreen } from './driver/DriversTodaysTripsScreen';
+export { default as DriverMapScreen } from './driver/DriverMapScreen';
 
-// User screens
+
+// Parent screens
 export { default as ParentDashboardScreen } from './parent/ParentDashboardScreen';
-export { default as ProfileScreen } from './user/ProfileScreen';
+export { default as TodaysTripsScreen } from './parent/TodaysTripsScreen';

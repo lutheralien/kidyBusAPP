@@ -1,15 +1,11 @@
 
-// src/api/authApi.ts
+// src/api/api.service.ts
 import { ApiErrorResponse, ApiSuccessResponse } from '../custom';
 import { User } from '../types/user.types';
 import Storage from '../utils/storage';
 import apiClient from './api.client';
 import axios from 'axios';
 
-
-// User login
-
-// User login with proper error typing
 export const login = async (credentials: {
     phone: string;
     password: string;
@@ -67,23 +63,6 @@ export const login = async (credentials: {
         };
     }
 };
-// User signup
-export const signup = async (userData: { email: string; password: string; name: string }) => {
-    const response = await apiClient.post('/auth/register', userData);
-
-    // Store token and refresh token
-    if (response.data.token) {
-        await Storage.setItem('token', response.data.token);
-    }
-
-    if (response.data.refreshToken) {
-        await Storage.setItem('refreshToken', response.data.refreshToken);
-    }
-
-    return response;
-};
-
-// User logout
 export const logout = async () => {
     // Get refresh token before removing it
     const refreshToken = await Storage.getItem('refreshToken');
@@ -102,8 +81,6 @@ export const logout = async () => {
 
     return { success: true };
 };
-
-// Forgot password
 export const sendOTP = async (phone: string): Promise<ApiSuccessResponse | ApiErrorResponse> => {
     try {
         console.log('Send OTP Attempt:', { phone });
@@ -200,30 +177,59 @@ export const resetPassword = async (phone: string, newPassword: string, userType
         };
     }
 };
-
-
-// Fetch user profile
 export const fetchUserProfile = async (userId: string) => {
     return await apiClient.get(`/common/user/${userId}`);
 };
-
-// Update user profile
 export const updateUserProfile = async (userData: Partial<User>) => {
-    return await apiClient.put(`/users/${userData.id}`, userData);
-};
-
-// Fetch all users (admin only)
-export const fetchAllUsers = async (page = 1, limit = 10) => {
-    return await apiClient.get('/users', {
-        params: { page, limit },
+    // Extract the _id from userData
+    const { _id, ...updateFields } = userData;
+    
+    // Call the new endpoint with the expected structure
+    return await apiClient.put(`/common/update-user`, {
+      id: _id,
+      data: updateFields,
+      userType: userData.role?.toUpperCase() === 'DRIVER' ? 'DRIVER' : 'PARENT'
     });
 };
-
-// Delete user (admin only)
-export const deleteUser = async (userId: string) => {
-    return await apiClient.delete(`/users/${userId}`);
+export const getStudentsAssignedToParent = async (userId: string) => {
+    return await apiClient.get(`/student/by-parent/${userId}`);
 };
-// Change user role (admin only)
-export const changeUserRole = async (userId: string, role: string) => {
-    return await apiClient.patch(`/users/${userId}/role`, { role });
+export const getMapsApiKey = async () => {
+    return await apiClient.get(`/common/map-key`);
+};
+export const getMapsRadius = async () => {
+    return await apiClient.get(`/common/map-radius`);
+};
+export const getRoutes = async () => {
+    return await apiClient.get(`/route`);
+};
+export const getTripsForParent = async (id: string) => {
+    return await apiClient.get(`/trip/parent/${id}`);
+};
+export const getTripsForDriver = async (id: string) => {
+    return await apiClient.get(`/trip/driver/${id}/today`);
+};
+export const getSpecificTrip = async (id: string) => {
+    return await apiClient.get(`/trip/${id}`);
+};
+// Update trip status (in_progress, completed, cancelled)
+export const updateTripStatus = async (tripId: string, status: 'in_progress' | 'completed' | 'cancelled') => {
+    return await apiClient.put(`/trip/status/${tripId}`, { status });
+};
+export const updateStopStatus = async (
+    tripId: string, 
+    stopId: string, 
+    status: 'completed' | 'missed' | 'cancelled',
+    actualTime?: string,
+    studentId?: string // New optional studentId parameter
+) => {
+    return await apiClient.put(`/trip/stop/${tripId}`, { 
+        status,
+        stopId,
+        actualTime,
+        ...(studentId ? { studentId } : {}) // Only include if provided
+    });
+};
+export const getTripDetails = async (id: string) => {
+    return await apiClient.get(`/trip/${id}`);
 };

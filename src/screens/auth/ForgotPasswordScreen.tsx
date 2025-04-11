@@ -14,7 +14,6 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import Toast from "react-native-toast-message";
-
 import { ROUTES } from "@/src/constants/routes";
 import {
   COLORS,
