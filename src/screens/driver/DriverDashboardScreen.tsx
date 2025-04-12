@@ -21,6 +21,7 @@ import { Feather } from "@expo/vector-icons";
 import LocationDropdown from "@/src/components/common/LocationDropdown";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { setUserLocation } from "../../store/slices/configSlice";
+import { RootState } from "@/src/store/store";
 
 interface DriverDashboardScreenProps {
   navigation: DriverNavigationProp<typeof ROUTES.DRIVER_DASHBOARD>;
@@ -31,7 +32,7 @@ const DriverDashboardScreen: React.FC<DriverDashboardScreenProps> = ({
 }) => {
   const { user } = useAuth();
   const dispatch = useAppDispatch();
-  const userLocation = useAppSelector((state) => state.config.userLocation);
+  const userLocation = useAppSelector((state:RootState) => state.config.userLocation);
 
   const [refreshing, setRefreshing] = useState(false);
 

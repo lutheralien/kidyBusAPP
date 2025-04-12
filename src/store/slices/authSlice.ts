@@ -20,9 +20,6 @@ export const loginUser = createAsyncThunk(
     async (credentials: { phone: string; password: string, userType: "DRIVER" | "PARENT" }, { rejectWithValue }) => {
       try {
         const response = await login(credentials);
-        console.log('response.success',response.success);
-        
-        
         // The API might be returning {success: false, message: ...} which isn't an error
         // but rather a failed login that needs to be handled
         if (!response.success) {

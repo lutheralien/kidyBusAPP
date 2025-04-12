@@ -301,10 +301,10 @@ export const fetchAlternativeRoutes = async (
       // Build the URL
       const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destinationStr}${waypointsStr}&key=${apiKey}`;
       
-      console.log(`Fetching route "${routeName}":`, url.replace(apiKey, "API_KEY_HIDDEN"));
-      
       // Make the request
       const response = await fetch(url);
+      console.log('response',response);
+      
       const json = await response.json();
       
       if (json.status !== "OK") {
@@ -333,7 +333,7 @@ export const fetchAlternativeRoutes = async (
         summary: routeName
       };
     } catch (error) {
-      console.error(`Error fetching route "${routeName}":`, error);
+      console.log(`Error fetching route "${routeName}":`, error);
       return null;
     }
   };

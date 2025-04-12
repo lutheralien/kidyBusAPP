@@ -384,11 +384,9 @@ const DriverMapScreen = () => {
   const emitLocationUpdate = useCallback(
     (currentLocation: { longitude: any; latitude: any; }, tripStatus?: string) => {
       if (!socketRef.current || !socketConnected || !tripId) {
-        console.log("Cannot emit location update: socket not connected or missing tripId");
         return;
       }
     
-      console.log(`Emitting location update for trip: ${tripId}${tripStatus ? ` with status: ${tripStatus}` : ''}`);
       socketRef.current.emit(ESocketEvents.LOCATION_UPDATE, {
         tripId: tripId,
         userId: user?._id,
@@ -502,7 +500,6 @@ const DriverMapScreen = () => {
   }, [user?._id]);
 
   useEffect(() => {
-    console.log("DriverMapScreen mounted with tripId:", tripId);
     fetchTripData();
     const cleanup = setupSocket();
 
@@ -510,7 +507,6 @@ const DriverMapScreen = () => {
       if (cleanup && typeof cleanup === 'function') {
         cleanup();
       }
-      console.log("DriverMapScreen unmounting");
     };
   }, [tripId, setupSocket, user]);
 
@@ -534,18 +530,12 @@ const DriverMapScreen = () => {
           return;
         }
 
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
-
-        console.log("Initial location acquired:", {
-          lat: location.coords.latitude,
-          lng: location.coords.longitude,
-        });
+        const longitude = userLocation.coordinates[0];
+        const latitude = userLocation.coordinates[1];
 
         setPreviousLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
+          latitude,
+          longitude,
         });
       } catch (error) {
         console.error("Error getting initial location:", error);
@@ -556,10 +546,6 @@ const DriverMapScreen = () => {
   }, []);
 
   useEffect(() => {
-    console.log(
-      "Initializing Geocoder with key:",
-      mapsKey ? "Available" : "Missing"
-    );
     if (mapsKey) {
       try {
         Geocoder.init(mapsKey);
@@ -573,19 +559,22 @@ const DriverMapScreen = () => {
     let locationSubscription: Location.LocationSubscription;
 
     // Use the ref defined at component level
-    const MIN_UPDATE_INTERVAL = 3000; // 3 seconds between updates to state
+    const MIN_UPDATE_INTERVAL = 1000; // 1 seconds between updates to state
+    console.log('MIN_UPDATE_INTERVAL',MIN_UPDATE_INTERVAL);
+    
 
     const setupLocationTracking = async () => {
       try {
+        console.log('sett up lc');
+        
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") return;
 
-        console.log("Starting location tracking");
         locationSubscription = await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.Balanced, // Lower accuracy to reduce updates
+            accuracy: Location.Accuracy.Highest, // Lower accuracy to reduce updates
             distanceInterval: 1.5, // Only update when moved 5 meters
-            timeInterval: 3000, // Update every 3 seconds maximum
+            timeInterval: MIN_UPDATE_INTERVAL, // Update every 3 seconds maximum
           },
           (location) => {
             const currentLocation = {
@@ -596,19 +585,24 @@ const DriverMapScreen = () => {
             const now = Date.now();
             // Skip updates that come too quickly to prevent re-renders
             if (now - locationUpdateRef.current < MIN_UPDATE_INTERVAL) {
+                console.log('here');
+                
               return;
             }
 
             locationUpdateRef.current = now;
-
+            
             // Only calculate distance & update location if we have a previous location
+            console.log('previousLocation',previousLocation);
+            
             if (previousLocation) {
-              const distance = calculateDistance(
-                previousLocation.latitude,
-                previousLocation.longitude,
-                currentLocation.latitude,
-                currentLocation.longitude
-              );
+                const distance = calculateDistance(
+                    previousLocation.latitude,
+                    previousLocation.longitude,
+                    currentLocation.latitude,
+                    currentLocation.longitude
+                );
+                console.log('distance',distance);
 
               // Only trigger updates if we've moved a significant distance
               if (distance > LOCATION_UPDATE_THRESHOLD) {
@@ -664,7 +658,6 @@ const DriverMapScreen = () => {
                       place: previousLocation ? userLocation?.place || "" : "",
                     })
                   );
-                  console.log("distance", distance);
 
                   if (
                     distance > LOCATION_UPDATE_THRESHOLD &&
@@ -700,7 +693,6 @@ const DriverMapScreen = () => {
     setupLocationTracking();
 
     return () => {
-      console.log("Cleaning up location subscription");
       if (locationSubscription) {
         locationSubscription.remove();
       }
@@ -716,8 +708,6 @@ const DriverMapScreen = () => {
       
       if (response.data.success) {
         const trip = response.data.data;
-        console.log("Trip found:", trip._id);
-        console.log("Number of stops:", trip.stops?.length || 0);
         setTripData(trip);
         processRouteData(trip);
       } else {
@@ -733,10 +723,7 @@ const DriverMapScreen = () => {
   };
 
   const processRouteData = async (trip: Trip): Promise<void> => {
-    console.log("Processing route data for trip:", trip._id);
-
     if (!trip || !trip.stops || trip.stops.length === 0) {
-      console.log("No stops found in trip");
       setError("No route data available");
       return;
     }
@@ -750,7 +737,6 @@ const DriverMapScreen = () => {
       const sortedStops = [...trip.stops].sort(
         (a, b) => a.sequence - b.sequence
       );
-      console.log("Sorted stops by sequence, count:", sortedStops.length);
 
       // Create a map to store stop data by coordinates
       const newStopDataMap = new Map();
@@ -764,8 +750,6 @@ const DriverMapScreen = () => {
       if (trip.routeId?.schoolId?.location?.coordinates) {
         try {
           const schoolCoords = trip.routeId.schoolId.location.coordinates;
-          console.log("School coordinates found:", schoolCoords);
-
           if (Array.isArray(schoolCoords) && schoolCoords.length === 2) {
             const [longitude, latitude] = schoolCoords;
 
@@ -791,7 +775,6 @@ const DriverMapScreen = () => {
                 stopData: sortedStops.find(s => s.sequence === 0) || null
               });
               
-              console.log(`Added school location: [${longitude}, ${latitude}]`);
             } else {
               console.log("School coordinates invalid:", schoolCoords);
             }
@@ -831,7 +814,6 @@ const DriverMapScreen = () => {
               parentLocationsMap.get(locationKey).students.push(stop.studentId);
               parentLocationsMap.get(locationKey).stops.push(stop);
               
-              console.log(`Added student at stop ${index} to parent location ${locationKey}`);
             }
           } else if (stop.type === "school") {
             // Handle school stop separately - already done above
@@ -843,19 +825,11 @@ const DriverMapScreen = () => {
         }
       });
 
-      console.log("Found unique parent locations:", parentLocationsMap.size);
-
       // Add parent locations to coordinates with better validation
       parentLocationsMap.forEach((locationData, locationKey) => {
         try {
           const location = locationData.location;
-          console.log(
-            `Processing location at ${locationKey}:`,
-            JSON.stringify(location)
-          );
-
           if (!location.coordinates) {
-            console.log(`Location has no coordinates`);
             return;
           }
 
@@ -863,10 +837,6 @@ const DriverMapScreen = () => {
             !Array.isArray(location.coordinates) ||
             location.coordinates.length !== 2
           ) {
-            console.log(
-              `Location has invalid coordinates format:`,
-              location.coordinates
-            );
             invalidCoordinates.push({
               locationKey,
               coordinates: location.coordinates,
@@ -877,10 +847,6 @@ const DriverMapScreen = () => {
           const [longitude, latitude] = location.coordinates;
 
           if (typeof latitude !== "number" || typeof longitude !== "number") {
-            console.log(`Location has non-numeric coordinates:`, {
-              longitude,
-              latitude,
-            });
             invalidCoordinates.push({
               locationKey,
               coordinates: location.coordinates,
@@ -895,10 +861,6 @@ const DriverMapScreen = () => {
             longitude < -180 ||
             longitude > 180
           ) {
-            console.log(`Location has out-of-range coordinates:`, {
-              longitude,
-              latitude,
-            });
             invalidCoordinates.push({
               locationKey,
               coordinates: [longitude, latitude],
@@ -918,10 +880,7 @@ const DriverMapScreen = () => {
             stops: locationData.stops,
             address: location.place || "Pickup Point"
           });
-          
-          console.log(
-            `Added valid coordinates for location: [${longitude}, ${latitude}]`
-          );
+         
         } catch (locationError) {
           console.error(`Error processing location:`, locationError);
         }
@@ -931,8 +890,6 @@ const DriverMapScreen = () => {
         console.log("Invalid coordinates found:", invalidCoordinates);
       }
 
-      console.log("Total valid coordinates:", coordinates.length);
-      
       // Save stop data map
       setStopDataMap(newStopDataMap);
 
@@ -948,31 +905,21 @@ const DriverMapScreen = () => {
           longitudeDelta: 0.05,
         });
 
-        console.log("Set initial region to:", coordinates[0]);
-
         // Now fetch alternative routes that all include all stops
         if (coordinates.length >= 2 && mapsKey) {
           try {
-            console.log("Fetching alternative routes with all stops");
-
             // Get route alternatives
             const routeAlts = await fetchAlternativeRoutes(
               coordinates,
               mapsKey
             );
-            console.log("routeAlts", routeAlts);
-
             if (routeAlts.length > 0) {
               setRouteAlternatives(routeAlts);
-              console.log(`Found ${routeAlts.length} route alternatives`);
-
               // Show route selector if we have multiple options
               if (routeAlts.length > 1) {
                 setShowRouteSelector(true);
               }
             } else {
-              console.log("No alternative routes found");
-
               // Fallback to a single route if no alternatives were generated
               const fallbackRoute = await fetchRouteWithWaypoints(
                 coordinates[0],
@@ -1031,7 +978,6 @@ const DriverMapScreen = () => {
       const locationData = stopDataMap.get(coordKey);
       
       if (!locationData) {
-        console.log(`No stop data found for coordinate ${coordKey}`);
         return null;
       }
       
@@ -1164,7 +1110,7 @@ const DriverMapScreen = () => {
       text1: "Status Updated",
       text2: selectedStudent ? `${selectedStudent.name}'s status has been updated` : "Stop status has been updated",
       position: "bottom",
-      visibilityTime: 3000,
+      visibilityTime: 1000,
     });
   };
 

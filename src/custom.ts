@@ -108,7 +108,7 @@ export enum ESocketEvents {
   DISCONNECT = 'disconnect'
 }
 
-export const BASE_URL = 'http://192.168.1.49:3005/api/v1';
+export const BASE_URL = 'http://172.20.10.2:3005/api/v1';
 
 export const SOCKET_URL = BASE_URL.replace(/\/api\/v1$/, '');
 
