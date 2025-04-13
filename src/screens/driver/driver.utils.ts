@@ -303,8 +303,6 @@ export const fetchAlternativeRoutes = async (
       
       // Make the request
       const response = await fetch(url);
-      console.log('response',response);
-      
       const json = await response.json();
       
       if (json.status !== "OK") {

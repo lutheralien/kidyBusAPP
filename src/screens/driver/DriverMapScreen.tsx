@@ -21,22 +21,63 @@ import MapView, {
   Marker,
   PROVIDER_DEFAULT,
 } from "react-native-maps";
-import { getTripsForDriver, updateStopStatus, getSpecificTrip } from "@/src/api/api.service";
+import {
+  getTripsForDriver,
+  updateStopStatus,
+  getSpecificTrip,
+} from "@/src/api/api.service";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/src/store/store";
 import * as Location from "expo-location";
 import Geocoder from "react-native-geocoding";
 import { setUserLocation } from "@/src/store/slices/configSlice";
-import { calculateDistance, fetchAlternativeRoutes, fetchRouteWithWaypoints } from "./driver.utils";
+import {
+  calculateDistance,
+  fetchAlternativeRoutes,
+  fetchRouteWithWaypoints,
+} from "./driver.utils";
 import useAuth from "@/src/hooks/useAuth";
-import { ERoles, ESocketEvents, ILocation, SOCKET_URL, Trip } from "@/src/custom";
-import { Coordinates, RouteAlternative, TripResponse } from "./driver.types";
+import {
+  ERoles,
+  ESocketEvents,
+  ILocation,
+  SOCKET_URL,
+  Trip,
+} from "@/src/custom";
+import { Coordinates, RouteAlternative, TripResponse, RoutePayload, LocationUpdatePayload } from "./driver.types";
 import { io, Socket } from "socket.io-client";
 import Toast from "react-native-toast-message";
 import moment from "moment";
 
 // Types
 type DriverMapScreenRouteProp = RouteProp<DriverStackParamList, "DRIVER_MAP">;
+
+// Add these interfaces to driver.types.ts
+// interface RoutePayload {
+//   routeId: string;
+//   paths: {
+//     points: Coordinates[];
+//     distance: number;
+//     duration: number;
+//     summary: string;
+//   }[];
+//   totalDistance: number;
+//   totalDuration: number;
+// }
+
+// interface LocationUpdatePayload {
+//   tripId: string;
+//   userId: string;
+//   userType: string;
+//   status?: string;
+//   location: {
+//     type: string;
+//     coordinates: [number, number];
+//     place: string;
+//   };
+//   route?: RoutePayload;
+//   stops?: Coordinates[];
+// }
 
 // StudentSelectionModal component
 const StudentSelectionModal = ({
@@ -61,12 +102,12 @@ const StudentSelectionModal = ({
               Stop: {stop?.address || "Location"} | Time: {stop?.plannedTime}
             </Text>
           </View>
-          
+
           <FlatList
             data={students}
             keyExtractor={(item) => item._id}
             renderItem={({ item }) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.studentItem}
                 onPress={() => {
                   onSelectStudent(stop, item);
@@ -84,7 +125,7 @@ const StudentSelectionModal = ({
               </TouchableOpacity>
             )}
           />
-          
+
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Close</Text>
           </TouchableOpacity>
@@ -210,14 +251,23 @@ const StopActionModal = ({
           </View>
 
           {loading ? (
-            <ActivityIndicator size="large" color={COLORS.primary} style={styles.modalLoading} />
+            <ActivityIndicator
+              size="large"
+              color={COLORS.primary}
+              style={styles.modalLoading}
+            />
           ) : (
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.completeButton]}
                 onPress={handleComplete}
               >
-                <Feather name="check-circle" size={18} color={COLORS.white} style={styles.modalButtonIcon} />
+                <Feather
+                  name="check-circle"
+                  size={18}
+                  color={COLORS.white}
+                  style={styles.modalButtonIcon}
+                />
                 <Text style={styles.modalButtonText}>Completed</Text>
               </TouchableOpacity>
 
@@ -225,7 +275,12 @@ const StopActionModal = ({
                 style={[styles.modalButton, styles.missedButton]}
                 onPress={handleMissed}
               >
-                <Feather name="x-circle" size={18} color={COLORS.white} style={styles.modalButtonIcon} />
+                <Feather
+                  name="x-circle"
+                  size={18}
+                  color={COLORS.white}
+                  style={styles.modalButtonIcon}
+                />
                 <Text style={styles.modalButtonText}>Missed</Text>
               </TouchableOpacity>
 
@@ -233,7 +288,12 @@ const StopActionModal = ({
                 style={[styles.modalButton, styles.cancelledButton]}
                 onPress={handleCancelled}
               >
-                <Feather name="slash" size={18} color={COLORS.white} style={styles.modalButtonIcon} />
+                <Feather
+                  name="slash"
+                  size={18}
+                  color={COLORS.white}
+                  style={styles.modalButtonIcon}
+                />
                 <Text style={styles.modalButtonText}>Cancelled</Text>
               </TouchableOpacity>
             </View>
@@ -249,15 +309,15 @@ const StopActionModal = ({
 };
 
 // RouteSelector component
-const RouteSelector = ({ 
-  routes, 
-  onSelect, 
-  onClose, 
-  isVisible, 
-  routeColors 
+const RouteSelector = ({
+  routes,
+  onSelect,
+  onClose,
+  isVisible,
+  routeColors,
 }) => {
   if (!isVisible) return null;
-  
+
   return (
     <View style={styles.routeSelectorContainer}>
       <View style={styles.routeSelectorHeader}>
@@ -301,37 +361,40 @@ const TripStatusControls = ({ tripStatus, onStatusChange }) => {
   return (
     <View style={styles.tripStatusContainer}>
       <Text style={styles.statusHeading}>
-        Status: <Text style={styles.currentStatus}>{tripStatus?.replace('_', ' ')}</Text>
+        Status:{" "}
+        <Text style={styles.currentStatus}>
+          {tripStatus?.replace("_", " ")}
+        </Text>
       </Text>
-      
+
       <View style={styles.statusButtonsRow}>
         {/* Show Start button only for scheduled trips */}
-        {tripStatus === 'scheduled' && (
+        {tripStatus === "scheduled" && (
           <TouchableOpacity
             style={[styles.statusButton, styles.startButton]}
-            onPress={() => onStatusChange('in_progress')}
+            onPress={() => onStatusChange("in_progress")}
           >
             <Feather name="play" size={16} color={COLORS.white} />
             <Text style={styles.statusButtonText}>Start Trip</Text>
           </TouchableOpacity>
         )}
-        
+
         {/* Show Complete button only for in-progress trips */}
-        {tripStatus === 'in_progress' && (
+        {tripStatus === "in_progress" && (
           <TouchableOpacity
             style={[styles.statusButton, styles.completeButton]}
-            onPress={() => onStatusChange('completed')}
+            onPress={() => onStatusChange("completed")}
           >
             <Feather name="check-circle" size={16} color={COLORS.white} />
             <Text style={styles.statusButtonText}>Complete Trip</Text>
           </TouchableOpacity>
         )}
-        
+
         {/* Show Cancel button for scheduled or in-progress trips */}
-        {(tripStatus === 'scheduled' || tripStatus === 'in_progress') && (
+        {(tripStatus === "scheduled" || tripStatus === "in_progress") && (
           <TouchableOpacity
             style={[styles.statusButton, styles.cancelButton]}
-            onPress={() => onStatusChange('cancelled')}
+            onPress={() => onStatusChange("cancelled")}
           >
             <Feather name="x-circle" size={16} color={COLORS.white} />
             <Text style={styles.statusButtonText}>Cancel Trip</Text>
@@ -359,15 +422,25 @@ const DriverMapScreen = () => {
   const [tripData, setTripData] = useState<Trip | null>(null);
   const [stopCoordinates, setStopCoordinates] = useState<Coordinates[]>([]);
   const [stopDataMap, setStopDataMap] = useState<Map<string, any>>(new Map());
-  const [routeAlternatives, setRouteAlternatives] = useState<RouteAlternative[]>([]);
+  const [routeAlternatives, setRouteAlternatives] = useState<
+    RouteAlternative[]
+  >([]);
   const [initialRegion, setInitialRegion] = useState<any>(null);
-  const [previousLocation, setPreviousLocation] = useState<Coordinates | null>(null);
+  const [previousLocation, setPreviousLocation] = useState<Coordinates | null>({
+    latitude: userLocation?.coordinates?.[1] || 0,
+    longitude: userLocation?.coordinates?.[0] || 0
+  });
   const [markersReady, setMarkersReady] = useState<boolean>(false);
   const [routeLoading, setRouteLoading] = useState<boolean>(false);
   const [showRouteSelector, setShowRouteSelector] = useState<boolean>(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
-  
+
+  // Add state for driver location visualization
+  const [driverPath, setDriverPath] = useState<Coordinates[]>([]);
+  const [driverMarker, setDriverMarker] = useState<Coordinates | null>(null);
+  const driverMarkerRef = useRef(null);
+
   // Add state for stop update modal
   const [selectedStop, setSelectedStop] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -380,82 +453,155 @@ const DriverMapScreen = () => {
   const MARKER_DELAY = 200; // Delay in ms before showing markers
   const ROUTE_COLORS = [COLORS.primary, "#FF9500", "#4CD964"]; // Colors for different routes
 
-  // Function to emit location updates with optional status
+  // Function to emit location updates with optional status and route data
   const emitLocationUpdate = useCallback(
-    (currentLocation: { longitude: any; latitude: any; }, tripStatus?: string) => {
+    (
+      currentLocation: { longitude: any; latitude: any },
+      tripStatus?: string
+    ) => {
       if (!socketRef.current || !socketConnected || !tripId) {
+        console.log('Socket not connected or missing tripId');
         return;
       }
-    
-      socketRef.current.emit(ESocketEvents.LOCATION_UPDATE, {
+      
+      // Create the basic location payload
+      const locationPayload: LocationUpdatePayload = {
         tripId: tripId,
         userId: user?._id,
         userType: ERoles.DRIVER,
         status: tripStatus, // Pass the optional status parameter
         location: {
           type: "Point",
-          coordinates: [
-            currentLocation.longitude,
-            currentLocation.latitude,
-          ],
+          coordinates: [currentLocation.longitude, currentLocation.latitude],
           place: userLocation?.place || "",
+        },
+      };
+      
+      // Add route alternatives data if available
+      if (routeAlternatives && routeAlternatives.length > 0) {
+        // Find the selected route
+        const selectedRoute = routeAlternatives.find(route => route.isSelected) || routeAlternatives[0];
+        
+        // Add route data to the payload
+        locationPayload.route = {
+          routeId: selectedRoute.id,
+          paths: selectedRoute.paths.map(path => ({
+            points: path.points,
+            distance: path.distance,
+            duration: path.duration,
+            summary: path.summary
+          })),
+          totalDistance: selectedRoute.totalDistance,
+          totalDuration: selectedRoute.totalDuration
+        };
+        
+        // Also add stops data if available
+        if (stopCoordinates && stopCoordinates.length > 0) {
+          locationPayload.stops = stopCoordinates;
         }
-      });
+        
+        console.log('Emitting location update with route data');
+      } else {
+        console.log('Emitting location update without route data (not available yet)');
+      }
+      
+      // Emit the enhanced payload
+      socketRef.current.emit(ESocketEvents.LOCATION_UPDATE, locationPayload);
     },
-    [socketRef, socketConnected, tripId, user, userLocation]
+    [socketRef, socketConnected, tripId, user, userLocation, routeAlternatives, stopCoordinates]
   );
 
-  // Trip status change handler
-  const handleTripStatusChange = useCallback((newStatus) => {
-    if (!tripData || newStatus === tripData.status) return;
+  // Function to update driver marker and path visualization
+  const updateDriverLocation = useCallback((locationData) => {
+    if (!locationData || !locationData.coordinates || locationData.coordinates.length !== 2) {
+      return;
+    }
     
-    Alert.alert(
-      "Update Trip Status",
-      `Are you sure you want to change trip status to ${newStatus.replace('_', ' ')}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Yes", 
-          onPress: () => {
-            // Get current location
-            if (userLocation && userLocation.coordinates) {
-              const currentLocation = {
-                longitude: userLocation.coordinates[0],
-                latitude: userLocation.coordinates[1]
-              };
-              
-              // Update local trip data state
-              setTripData(prev => prev ? { ...prev, status: newStatus } : null);
-              
-              // Emit location update with status change
-              emitLocationUpdate(currentLocation, newStatus);
-              
-              // Show toast confirmation
-              Toast.show({
-                type: "success",
-                text1: "Trip Status Updated",
-                text2: `Trip is now ${newStatus.replace('_', ' ')}`,
-                position: "bottom",
-                visibilityTime: 3000,
-              });
-              
-              // Vibrate device for feedback
-              if (Platform.OS === "android" || Platform.OS === "ios") {
-                Vibration.vibrate(200);
+    // Extract coordinates (GeoJSON format is [longitude, latitude])
+    const longitude = locationData.coordinates[0];
+    const latitude = locationData.coordinates[1];
+    
+    // Create a coordinate object for the map
+    const coordinate = {
+      latitude,
+      longitude
+    };
+    
+    // Store current driver position for the marker
+    setDriverMarker(coordinate);
+    
+    // Add to driver path for the traveled route polyline
+    setDriverPath(prevPath => [...prevPath, coordinate]);
+    
+    // Pan map to driver location if auto-follow is enabled
+    if (mapRef.current) {
+      mapRef.current.animateToRegion({
+        ...coordinate,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01
+      }, 1000);
+    }
+  }, []);
+
+  // Trip status change handler
+  const handleTripStatusChange = useCallback(
+    (newStatus) => {
+      if (!tripData || newStatus === tripData.status) return;
+
+      Alert.alert(
+        "Update Trip Status",
+        `Are you sure you want to change trip status to ${newStatus.replace(
+          "_",
+          " "
+        )}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Yes",
+            onPress: () => {
+              // Get current location
+              if (userLocation && userLocation.coordinates) {
+                const currentLocation = {
+                  longitude: userLocation.coordinates[0],
+                  latitude: userLocation.coordinates[1],
+                };
+
+                // Update local trip data state
+                setTripData((prev) =>
+                  prev ? { ...prev, status: newStatus } : null
+                );
+
+                // Emit location update with status change
+                emitLocationUpdate(currentLocation, newStatus);
+
+                // Show toast confirmation
+                Toast.show({
+                  type: "success",
+                  text1: "Trip Status Updated",
+                  text2: `Trip is now ${newStatus.replace("_", " ")}`,
+                  position: "bottom",
+                  visibilityTime: 3000,
+                });
+
+                // Vibrate device for feedback
+                if (Platform.OS === "android" || Platform.OS === "ios") {
+                  Vibration.vibrate(200);
+                }
+              } else {
+                Toast.show({
+                  type: "error",
+                  text1: "Update Failed",
+                  text2: "Could not get your current location",
+                  position: "bottom",
+                });
               }
-            } else {
-              Toast.show({
-                type: "error",
-                text1: "Update Failed",
-                text2: "Could not get your current location",
-                position: "bottom",
-              });
-            }
-          } 
-        }
-      ]
-    );
-  }, [tripData, userLocation, emitLocationUpdate]);
+            },
+          },
+        ]
+      );
+    },
+    [tripData, userLocation, emitLocationUpdate]
+  );
 
   // Function to set up socket connection
   const setupSocket = useCallback(() => {
@@ -504,7 +650,7 @@ const DriverMapScreen = () => {
     const cleanup = setupSocket();
 
     return () => {
-      if (cleanup && typeof cleanup === 'function') {
+      if (cleanup && typeof cleanup === "function") {
         cleanup();
       }
     };
@@ -522,30 +668,6 @@ const DriverMapScreen = () => {
   }, [stopCoordinates]);
 
   useEffect(() => {
-    const getCurrentLocation = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          console.log("Permission to access location was denied");
-          return;
-        }
-
-        const longitude = userLocation.coordinates[0];
-        const latitude = userLocation.coordinates[1];
-
-        setPreviousLocation({
-          latitude,
-          longitude,
-        });
-      } catch (error) {
-        console.error("Error getting initial location:", error);
-      }
-    };
-
-    getCurrentLocation();
-  }, []);
-
-  useEffect(() => {
     if (mapsKey) {
       try {
         Geocoder.init(mapsKey);
@@ -560,13 +682,12 @@ const DriverMapScreen = () => {
 
     // Use the ref defined at component level
     const MIN_UPDATE_INTERVAL = 1000; // 1 seconds between updates to state
-    console.log('MIN_UPDATE_INTERVAL',MIN_UPDATE_INTERVAL);
-    
+    console.log("MIN_UPDATE_INTERVAL", MIN_UPDATE_INTERVAL);
 
     const setupLocationTracking = async () => {
       try {
-        console.log('sett up lc');
-        
+        console.log("sett up lc");
+
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") return;
 
@@ -585,28 +706,37 @@ const DriverMapScreen = () => {
             const now = Date.now();
             // Skip updates that come too quickly to prevent re-renders
             if (now - locationUpdateRef.current < MIN_UPDATE_INTERVAL) {
-                console.log('here');
-                
+              console.log("here");
+
               return;
             }
 
             locationUpdateRef.current = now;
-            
+
             // Only calculate distance & update location if we have a previous location
-            console.log('previousLocation',previousLocation);
-            
+            console.log("previousLocation", previousLocation);
+
             if (previousLocation) {
-                const distance = calculateDistance(
-                    previousLocation.latitude,
-                    previousLocation.longitude,
-                    currentLocation.latitude,
-                    currentLocation.longitude
-                );
-                console.log('distance',distance);
+              const distance = calculateDistance(
+                previousLocation.latitude,
+                previousLocation.longitude,
+                currentLocation.latitude,
+                currentLocation.longitude
+              );
+              console.log("distance", distance);
 
               // Only trigger updates if we've moved a significant distance
               if (distance > LOCATION_UPDATE_THRESHOLD) {
-                emitLocationUpdate(currentLocation);
+                emitLocationUpdate({
+                  longitude: currentLocation.longitude, 
+                  latitude: currentLocation.latitude
+                });
+                
+                // Update driver marker visualization
+                updateDriverLocation({
+                  coordinates: [currentLocation.longitude, currentLocation.latitude]
+                });
+                
                 // Geocode less frequently
                 if (mapsKey && distance > 50) {
                   // Only geocode after moving 50 meters
@@ -682,6 +812,10 @@ const DriverMapScreen = () => {
                 })
               );
               setPreviousLocation(currentLocation);
+              
+              // Initialize driver marker with first location
+              setDriverMarker(currentLocation);
+              setDriverPath([currentLocation]);
             }
           }
         );
@@ -697,7 +831,7 @@ const DriverMapScreen = () => {
         locationSubscription.remove();
       }
     };
-  }, [dispatch, mapsKey]);
+  }, [dispatch, mapsKey, emitLocationUpdate, updateDriverLocation]);
 
   const fetchTripData = async (): Promise<void> => {
     setLoading(true);
@@ -705,7 +839,7 @@ const DriverMapScreen = () => {
     try {
       // Use getSpecificTrip instead of getTripsForDriver
       const response = await getSpecificTrip(tripId);
-      
+
       if (response.data.success) {
         const trip = response.data.data;
         setTripData(trip);
@@ -766,15 +900,14 @@ const DriverMapScreen = () => {
                 longitude,
               };
               coordinates.push(schoolCoordinates);
-              
+
               // Add school to stopDataMap
               const coordKey = `${latitude},${longitude}`;
               newStopDataMap.set(coordKey, {
                 type: "school",
                 students: [],
-                stopData: sortedStops.find(s => s.sequence === 0) || null
+                stopData: sortedStops.find((s) => s.sequence === 0) || null,
               });
-              
             } else {
               console.log("School coordinates invalid:", schoolCoords);
             }
@@ -795,25 +928,25 @@ const DriverMapScreen = () => {
           if (stop.studentId?.parent?.location) {
             const parentId = stop.studentId.parent._id;
             const parentLocation = stop.studentId.parent.location;
-            
-            if (parentLocation?.coordinates && 
-                parentLocation.coordinates.length === 2) {
-                
+
+            if (
+              parentLocation?.coordinates &&
+              parentLocation.coordinates.length === 2
+            ) {
               // Group by parent location
               const locationKey = `${parentLocation.coordinates[1]},${parentLocation.coordinates[0]}`;
-              
+
               if (!parentLocationsMap.has(locationKey)) {
                 parentLocationsMap.set(locationKey, {
                   location: parentLocation,
                   students: [],
-                  stops: []
+                  stops: [],
                 });
               }
-              
+
               // Add this student to the location
               parentLocationsMap.get(locationKey).students.push(stop.studentId);
               parentLocationsMap.get(locationKey).stops.push(stop);
-              
             }
           } else if (stop.type === "school") {
             // Handle school stop separately - already done above
@@ -872,15 +1005,14 @@ const DriverMapScreen = () => {
             latitude,
             longitude,
           });
-          
+
           // Add to stopDataMap
           newStopDataMap.set(locationKey, {
             type: "pickup",
             students: locationData.students,
             stops: locationData.stops,
-            address: location.place || "Pickup Point"
+            address: location.place || "Pickup Point",
           });
-         
         } catch (locationError) {
           console.error(`Error processing location:`, locationError);
         }
@@ -913,11 +1045,40 @@ const DriverMapScreen = () => {
               coordinates,
               mapsKey
             );
+            
+            console.log(`Generated ${routeAlts.length} route alternatives`);
+            
             if (routeAlts.length > 0) {
               setRouteAlternatives(routeAlts);
+              
               // Show route selector if we have multiple options
               if (routeAlts.length > 1) {
                 setShowRouteSelector(true);
+              }
+              
+              // If we have user location, emit the route data
+              if (userLocation && userLocation.coordinates) {
+                const currentLocation = {
+                  longitude: userLocation.coordinates[0],
+                  latitude: userLocation.coordinates[1],
+                };
+                
+                // Slight delay to ensure state is updated
+                setTimeout(() => {
+                  emitLocationUpdate(currentLocation);
+                }, 300);
+                
+                // Initialize driver location marker
+                if (driverMarker === null) {
+                  setDriverMarker({
+                    latitude: currentLocation.latitude,
+                    longitude: currentLocation.longitude
+                  });
+                  setDriverPath([{
+                    latitude: currentLocation.latitude,
+                    longitude: currentLocation.longitude
+                  }]);
+                }
               }
             } else {
               // Fallback to a single route if no alternatives were generated
@@ -940,6 +1101,16 @@ const DriverMapScreen = () => {
                     totalDuration: fallbackRoute.duration,
                   },
                 ]);
+                
+                // Emit the fallback route
+                if (userLocation && userLocation.coordinates) {
+                  setTimeout(() => {
+                    emitLocationUpdate({
+                      longitude: userLocation.coordinates[0],
+                      latitude: userLocation.coordinates[1]
+                    });
+                  }, 300);
+                }
               }
             }
           } catch (routeError) {
@@ -976,18 +1147,18 @@ const DriverMapScreen = () => {
     try {
       const coordKey = `${coord.latitude},${coord.longitude}`;
       const locationData = stopDataMap.get(coordKey);
-      
+
       if (!locationData) {
         return null;
       }
-      
+
       const isSchool = locationData.type === "school";
       const students = locationData.students || [];
-      
+
       // For school stops, we'll have a different approach
       if (isSchool) {
         const stopData = locationData.stopData;
-        
+
         return (
           <Marker
             key={`marker-${index}-${coord.latitude}-${coord.longitude}`}
@@ -1006,7 +1177,7 @@ const DriverMapScreen = () => {
                 });
                 return;
               }
-              
+
               setSelectedStop(stopData);
               setSelectedStudent(null);
               setModalVisible(true);
@@ -1014,7 +1185,7 @@ const DriverMapScreen = () => {
           />
         );
       }
-      
+
       // For regular stops with students
       return (
         <Marker
@@ -1035,7 +1206,7 @@ const DriverMapScreen = () => {
               });
               return;
             }
-            
+
             if (students.length > 1) {
               // Multiple students - show student selection modal
               setSelectedStop(locationData.stops[0]); // Use first stop for this location
@@ -1082,6 +1253,17 @@ const DriverMapScreen = () => {
         });
       }
     }
+    
+    // Emit location update with the new selected route
+    if (userLocation && userLocation.coordinates) {
+      const currentLocation = {
+        longitude: userLocation.coordinates[0],
+        latitude: userLocation.coordinates[1],
+      };
+      
+      // Emit with current location but updated route
+      emitLocationUpdate(currentLocation);
+    }
   };
 
   const handleRetry = () => {
@@ -1098,17 +1280,19 @@ const DriverMapScreen = () => {
   const toggleRouteSelector = () => {
     setShowRouteSelector(!showRouteSelector);
   };
-  
+
   // Handle stop updates
   const handleStopUpdateSuccess = () => {
     // Refresh trip data after updating a stop
     fetchTripData();
-    
+
     // Show toast
     Toast.show({
       type: "success",
       text1: "Status Updated",
-      text2: selectedStudent ? `${selectedStudent.name}'s status has been updated` : "Stop status has been updated",
+      text2: selectedStudent
+        ? `${selectedStudent.name}'s status has been updated`
+        : "Stop status has been updated",
       position: "bottom",
       visibilityTime: 1000,
     });
@@ -1174,6 +1358,34 @@ const DriverMapScreen = () => {
           {/* Only render markers after delay to prevent errors */}
           {markersReady &&
             stopCoordinates.map((coord, index) => renderMarker(coord, index))}
+            
+          {/* Render driver's actual path polyline */}
+          {driverPath.length >= 2 && (
+            <Polyline
+              coordinates={driverPath}
+              strokeWidth={3}
+              strokeColor="#FF9500" // Orange color to distinguish from the planned route
+              strokeDashPattern={[0]} // Solid line
+              geodesic={true}
+            />
+          )}
+
+          {/* Render driver location marker */}
+          {driverMarker && (
+            <Marker
+              coordinate={driverMarker}
+              title="Driver Location"
+              description={userLocation?.place || "Current Location"}
+              identifier="driver-marker"
+              tracksViewChanges={false}
+            >
+              <View style={styles.driverMarkerContainer}>
+                <View style={styles.driverMarker}>
+                  <Feather name="navigation" size={18} color={COLORS.white} />
+                </View>
+              </View>
+            </Marker>
+          )}
         </MapView>
       ) : (
         <View style={styles.noDataContainer}>
@@ -1195,7 +1407,9 @@ const DriverMapScreen = () => {
         routes={routeAlternatives}
         onSelect={handleRouteSelect}
         onClose={toggleRouteSelector}
-        isVisible={showRouteSelector && !routeLoading && routeAlternatives.length > 0}
+        isVisible={
+          showRouteSelector && !routeLoading && routeAlternatives.length > 0
+        }
         routeColors={ROUTE_COLORS}
       />
 
@@ -1238,7 +1452,7 @@ const DriverMapScreen = () => {
           )}
         </View>
       )}
-      
+
       {/* Student Selection Modal */}
       {studentSelectionVisible && (
         <StudentSelectionModal
@@ -1249,7 +1463,7 @@ const DriverMapScreen = () => {
           stop={selectedStop}
         />
       )}
-      
+
       {/* Stop Action Modal */}
       {selectedStop && (
         <StopActionModal
@@ -1444,11 +1658,11 @@ const styles = StyleSheet.create({
   },
   // Trip status controls styles
   tripStatusContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 80,
     left: 10,
     right: 10,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: "rgba(255,255,255,0.95)",
     borderRadius: SIZES.borderRadius,
     padding: SIZES.s,
     elevation: 3,
@@ -1465,15 +1679,15 @@ const styles = StyleSheet.create({
   },
   currentStatus: {
     fontFamily: FONTS.bold,
-    textTransform: 'capitalize',
+    textTransform: "capitalize",
   },
   statusButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   statusButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: SIZES.xs,
     paddingHorizontal: SIZES.s,
     borderRadius: SIZES.borderRadius,
@@ -1564,8 +1778,8 @@ const styles = StyleSheet.create({
   },
   // Student selection styles
   studentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: SIZES.s,
     paddingHorizontal: SIZES.xs,
     borderBottomWidth: 1,
@@ -1576,8 +1790,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: `${COLORS.primary}15`,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: SIZES.s,
   },
   studentItemDetails: {
@@ -1592,6 +1806,28 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: FONTS.body4,
     color: COLORS.textSecondary,
+  },
+  // Driver marker styles
+  driverMarkerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
+  },
+  driverMarker: {
+    backgroundColor: '#FF3B30',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });
 

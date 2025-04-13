@@ -8,15 +8,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   AppState,
-  Platform,
   Animated,
-  Image,
-  Modal,
   Dimensions
 } from 'react-native';
 import { getTripsForParent } from '@/src/api/api.service';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import moment from 'moment';
 import { io, Socket } from 'socket.io-client';
 import Toast from 'react-native-toast-message';
@@ -26,9 +23,8 @@ import { COLORS, SIZES, FONTS } from '@/src/constants/theme';
 import { SOCKET_URL, ESocketEvents } from '@/src/custom';
 import useAuth from '@/src/hooks/useAuth';
 import JourneyTimeline from './JourneyComponent';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import { useSelector } from 'react-redux';
-import { RootState } from '@/src/store/store';
+import DriverLocationMap from './DriverLocationMap';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,233 +48,13 @@ interface RoutePathsMap {
   [tripId: string]: Coordinate[];
 }
 
-interface DriverLocationMapProps {
-  visible: boolean;
-  onClose: () => void;
-  driverLocation: DriverLocation | null;
-  trip: Trip | null;
-  routePath: Coordinate[];
+interface RouteDataMap {
+  [tripId: string]: any;
 }
 
-// Driver Location Map Modal Component
-const DriverLocationMap = ({ 
-  visible, 
-  onClose, 
-  driverLocation, 
-  trip, 
-  routePath = [] 
-}: DriverLocationMapProps) => {
-  const [mapReady, setMapReady] = useState(false);
-  const mapRef = useRef<MapView | null>(null);
-  const mapsKey = useSelector((state: RootState) => state.config.mapsKey);
-  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
-  
-  // This ref will help us track if we've already set the initial region
-  const regionSetRef = useRef(false);
-
-  // Only set the initial region once when props change and we don't have a region yet
-  useEffect(() => {
-    // Skip if we already set a region or if the modal is not visible
-    if (regionSetRef.current || !visible) return;
-
-    let newRegion = null;
-
-    // Try setting region in order of priority: driver location, route path, school location
-    if (driverLocation && driverLocation.coordinates) {
-      // GeoJSON format uses [longitude, latitude]
-      const [longitude, latitude] = driverLocation.coordinates;
-      console.log('Setting region from driver location:', longitude, latitude);
-      
-      newRegion = {
-        latitude,
-        longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-    } 
-    else if (routePath && routePath.length > 0) {
-      console.log('Setting region from route path:', routePath[0]);
-      newRegion = {
-        latitude: routePath[0].latitude,
-        longitude: routePath[0].longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-    }
-    else if (trip?.routeId?.schoolId?.location?.coordinates) {
-      const [longitude, latitude] = trip.routeId.schoolId.location.coordinates;
-      console.log('Setting region from school location:', longitude, latitude);
-      newRegion = {
-        latitude,
-        longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-    }
-
-    // Only update state if we have a valid region to set
-    if (newRegion) {
-      setInitialRegion(newRegion);
-      regionSetRef.current = true;
-    }
-  }, [driverLocation, routePath, trip, visible]);
-
-  // Reset the region tracking when modal closes
-  useEffect(() => {
-    if (!visible) {
-      // Wait for close animation to complete
-      setTimeout(() => {
-        regionSetRef.current = false;
-      }, 300);
-    }
-  }, [visible]);
-
-  // Handle map ready event
-  const handleMapReady = () => {
-    setMapReady(true);
-    
-    // If we have route path points, fit the map to show all points
-    if (routePath.length > 0 && mapRef.current) {
-      mapRef.current.fitToCoordinates(routePath, {
-        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        animated: true
-      });
-    }
-  };
-  
-  console.log('initialRegion state:', initialRegion, 'driverLocation:', driverLocation);
-
-  if (!initialRegion) {
-    return (
-      <Modal
-        visible={visible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={onClose}
-      >
-        <View style={styles.mapModalContainer}>
-          <View style={styles.mapModalContent}>
-            <View style={styles.mapModalHeader}>
-              <Text style={styles.mapModalTitle}>Route Map</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Feather name="x" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.mapLoadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.mapLoadingText}>Loading route map...</Text>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.mapModalContainer}>
-        <View style={styles.mapModalContent}>
-          <View style={styles.mapModalHeader}>
-            <View>
-              <Text style={styles.mapModalTitle}>
-                {driverLocation && driverLocation.coordinates ? 'Driver Location' : 'Route Map'}
-              </Text>
-              <Text style={styles.mapModalSubtitle}>
-                {trip?.routeId?.name || 'Route'} ({trip?.direction === 'afternoon' ? 'Afternoon' : 'Morning'})
-              </Text>
-            </View>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            provider={PROVIDER_DEFAULT}
-            initialRegion={initialRegion}
-            onMapReady={handleMapReady}
-          >
-            {/* Driver Marker */}
-            {driverLocation && driverLocation.coordinates && (
-              <Marker
-                coordinate={{
-                  latitude: driverLocation.coordinates[1],
-                  longitude: driverLocation.coordinates[0]
-                }}
-                title="Driver Location"
-                description={driverLocation.place || "Current Position"}
-              >
-                <View style={styles.driverMarker}>
-                  <Ionicons name="bus" size={16} color={COLORS.white} />
-                </View>
-              </Marker>
-            )}
-            
-            {/* Route Polyline */}
-            {routePath.length > 0 && mapReady && (
-              <Polyline
-                coordinates={routePath}
-                strokeWidth={4}
-                strokeColor={COLORS.primary}
-                geodesic={true}
-              />
-            )}
-            
-            {/* School Marker */}
-            {trip?.routeId?.schoolId?.location?.coordinates && (
-              <Marker
-                coordinate={{
-                  latitude: trip.routeId.schoolId.location.coordinates[1],
-                  longitude: trip.routeId.schoolId.location.coordinates[0]
-                }}
-                title="School"
-                pinColor="green"
-              />
-            )}
-            
-            {/* Student Stop Markers */}
-            {trip?.stops?.map((stop, index) => {
-              if (stop.studentId?.parent?.location?.coordinates) {
-                return (
-                  <Marker
-                    key={`stop-${index}`}
-                    coordinate={{
-                      latitude: stop.studentId.parent.location.coordinates[1],
-                      longitude: stop.studentId.parent.location.coordinates[0]
-                    }}
-                    title={stop.studentId.name}
-                    description={`Planned: ${stop.plannedTime}`}
-                    pinColor="red"
-                  />
-                );
-              }
-              return null;
-            })}
-          </MapView>
-          
-          {/* Live indicator - only show when driver location is available */}
-          {driverLocation && driverLocation.coordinates ? (
-            <View style={styles.mapLiveIndicator}>
-              <View style={styles.liveDot} />
-              <Text style={styles.mapLiveText}>LIVE TRACKING</Text>
-            </View>
-          ) : (
-            <View style={styles.noDriverContainer}>
-              <Feather name="info" size={16} color={COLORS.white} />
-              <Text style={styles.noDriverText}>Showing planned route. Driver location not available yet.</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-};
+interface StopLocationsMap {
+  [tripId: string]: any[];
+}
 
 const TodaysTripsScreen = () => {
   const { user } = useAuth();
@@ -298,6 +74,8 @@ const TodaysTripsScreen = () => {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [driverLocations, setDriverLocations] = useState<DriverLocationsMap>({});
   const [routePaths, setRoutePaths] = useState<RoutePathsMap>({});
+  const [routeData, setRouteData] = useState<RouteDataMap>({});
+  const [stopLocations, setStopLocations] = useState<StopLocationsMap>({});
 
   // Start pulse animation for the live indicator
   useEffect(() => {
@@ -375,16 +153,56 @@ const TodaysTripsScreen = () => {
     // Handle trip updates
     socketRef.current.on(ESocketEvents.TRIP_UPDATE, (data) => {
       console.log('Received trip update:', data);
-      updateTripData(data);
       
-      // Also check if the trip update includes location data
-      if (data.tripId && data.location) {
+      // Make sure we have a valid tripId
+      if (!data || !data.tripId) {
+        console.warn('Trip update missing tripId:', data);
+        return;
+      }
+      
+      const tripId = data.tripId;
+      
+      // Update trip status in trips array
+      setTrips(prevTrips => {
+        return prevTrips.map(trip => {
+          if (trip._id.toString() === tripId.toString()) {
+            return {
+              ...trip,
+              status: data.status
+            };
+          }
+          return trip;
+        });
+      });
+      
+      // Update driver location from the location field
+      if (data.location) {
+        console.log('Updating driver location for trip:', tripId, data.location);
         setDriverLocations(prev => ({
           ...prev,
-          [data.tripId]: data.location
+          [tripId]: data.location
         }));
       }
       
+      // Update route data from the route field
+      if (data.route) {
+        console.log('Updating route data for trip:', tripId);
+        setRouteData(prev => ({
+          ...prev,
+          [tripId]: data.route
+        }));
+      }
+      
+      // Update stop locations from the stops field
+      if (data.stops) {
+        console.log('Updating stop locations for trip:', tripId, data.stops.length, 'stops');
+        setStopLocations(prev => ({
+          ...prev,
+          [tripId]: data.stops
+        }));
+      }
+      
+      // Show a toast message for the update
       Toast.show({
         type: 'info',
         text1: 'Trip Update',
@@ -409,23 +227,50 @@ const TodaysTripsScreen = () => {
     socketRef.current.on(ESocketEvents.LOCATION_UPDATE, (data) => {
       console.log('Received location update:', data);
       
-      // Store driver location by trip ID
-      if (data.tripId && data.location) {
+      // Make sure we have a valid tripId
+      if (!data || !data.tripId) {
+        console.warn('Location update missing tripId:', data);
+        return;
+      }
+      
+      const tripId = data.tripId;
+      
+      // Update driver location from the location field
+      if (data.location) {
+        console.log('Updating driver location for trip:', tripId, data.location);
         setDriverLocations(prev => ({
           ...prev,
-          [data.tripId]: data.location
+          [tripId]: data.location
         }));
-        
-        // If we're currently viewing this trip on the map, show a toast
-        if (selectedTrip && selectedTrip._id === data.tripId) {
-          Toast.show({
-            type: 'info',
-            text1: 'Driver Location Updated',
-            text2: data.location.place || 'Location updated on map',
-            position: 'bottom',
-            visibilityTime: 2000,
-          });
-        }
+      }
+      
+      // Update route data from the route field
+      if (data.route) {
+        console.log('Updating route data for trip:', tripId);
+        setRouteData(prev => ({
+          ...prev,
+          [tripId]: data.route
+        }));
+      }
+      
+      // Update stop locations from the stops field
+      if (data.stops) {
+        console.log('Updating stop locations for trip:', tripId, data.stops.length, 'stops');
+        setStopLocations(prev => ({
+          ...prev,
+          [tripId]: data.stops
+        }));
+      }
+      
+      // If we're currently viewing this trip on the map, show a toast
+      if (selectedTrip && selectedTrip._id === tripId) {
+        Toast.show({
+          type: 'info',
+          text1: 'Driver Location Updated',
+          text2: data.location?.place || 'Location updated on map',
+          position: 'bottom',
+          visibilityTime: 2000,
+        });
       }
     });
 
@@ -435,21 +280,6 @@ const TodaysTripsScreen = () => {
       setSocketConnected(false);
     };
   }, [user?._id, selectedTrip]);
-
-  // Function to update trip data when receiving a socket event
-  const updateTripData = (data: any) => {
-    setTrips(prevTrips => {
-      return prevTrips.map(trip => {
-        if (trip._id.toString() === data.tripId.toString()) {
-          return {
-            ...trip,
-            status: data.status
-          };
-        }
-        return trip;
-      });
-    });
-  };
 
   // Function to update stop data when receiving a socket event
   const updateStopData = (data: any) => {
@@ -761,7 +591,6 @@ const TodaysTripsScreen = () => {
           </Card>
         ) : trips.length === 0 ? (
           <Card style={styles.emptyCard}>
-            <Text>NO TRIPS</Text>
             <Text style={styles.emptyTitle}>No Trips Today</Text>
             <Text style={styles.emptyText}>
               There are no scheduled trips for today. Pull down to refresh if you expect to see trips.
@@ -796,13 +625,15 @@ const TodaysTripsScreen = () => {
         )}
       </ScrollView>
 
-      {/* Driver Location Map Modal */}
+      {/* Use the separated DriverLocationMap component */}
       <DriverLocationMap
         visible={mapVisible}
         onClose={handleCloseMap}
         driverLocation={selectedTrip ? driverLocations[selectedTrip._id] : null}
         trip={selectedTrip}
         routePath={selectedTrip ? routePaths[selectedTrip._id] : []}
+        routeData={selectedTrip && routeData[selectedTrip._id] ? routeData[selectedTrip._id] : null}
+        stopLocations={selectedTrip && stopLocations[selectedTrip._id] ? stopLocations[selectedTrip._id] : []}
       />
     </SafeAreaView>
   );
@@ -912,7 +743,7 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     flex: 1,
   },
- // Connection banner (continued)
+ // Connection banner
  connectionBanner: {
   flexDirection: 'row',
   alignItems: 'center',
@@ -938,40 +769,6 @@ scrollViewContent: {
 // Section headers
 tripSection: {
   marginBottom: SIZES.m,
-},
-sectionHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: SIZES.s,
-  paddingHorizontal: SIZES.xs,
-  paddingVertical: SIZES.xs,
-  borderLeftWidth: 3,
-  borderLeftColor: COLORS.primary,
-  paddingLeft: SIZES.s,
-},
-sectionTitleContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-},
-sectionTitle: {
-  fontFamily: FONTS.bold,
-  fontSize: FONTS.h4,
-  color: COLORS.text,
-  marginLeft: SIZES.xs,
-},
-tripCountBadge: {
-  backgroundColor: `${COLORS.primary}15`,
-  paddingHorizontal: SIZES.s,
-  paddingVertical: SIZES.xs / 2,
-  borderRadius: 12,
-  minWidth: 22,
-  alignItems: 'center',
-},
-tripCountText: {
-  fontFamily: FONTS.bold,
-  fontSize: FONTS.body4,
-  color: COLORS.primary,
 },
 // Loading state
 loadingContainer: {
@@ -1044,11 +841,6 @@ emptyCard: {
   borderRadius: SIZES.borderRadius,
   marginBottom: SIZES.m,
 },
-emptyImage: {
-  width: 150,
-  height: 150,
-  marginBottom: SIZES.m,
-},
 emptyTitle: {
   fontFamily: FONTS.bold,
   fontSize: FONTS.h3,
@@ -1085,98 +877,6 @@ viewLocationText: {
 },
 viewLocationTextDisabled: {
   color: 'rgba(255,255,255,0.7)',
-},
-// Map modal styles
-mapModalContainer: {
-  flex: 1,
-  backgroundColor: 'rgba(0,0,0,0.5)',
-  justifyContent: 'flex-end',
-},
-mapModalContent: {
-  height: height * 0.8,
-  backgroundColor: COLORS.white,
-  borderTopLeftRadius: 20,
-  borderTopRightRadius: 20,
-  overflow: 'hidden',
-},
-mapModalHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: SIZES.m,
-  borderBottomWidth: 1,
-  borderBottomColor: `${COLORS.gray}20`,
-},
-mapModalTitle: {
-  fontFamily: FONTS.bold,
-  fontSize: FONTS.h3,
-  color: COLORS.text,
-},
-mapModalSubtitle: {
-  fontFamily: FONTS.regular,
-  fontSize: FONTS.body3,
-  color: COLORS.textSecondary,
-},
-map: {
-  flex: 1,
-},
-mapLoadingContainer: {
-  flex: 1,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-mapLoadingText: {
-  fontFamily: FONTS.medium,
-  fontSize: FONTS.body2,
-  color: COLORS.textSecondary,
-  marginTop: SIZES.m,
-},
-mapLiveIndicator: {
-  position: 'absolute',
-  top: 70,
-  right: 10,
-  backgroundColor: 'rgba(0,0,0,0.7)',
-  paddingHorizontal: SIZES.s,
-  paddingVertical: SIZES.xs,
-  borderRadius: 16,
-  flexDirection: 'row',
-  alignItems: 'center',
-},
-mapLiveText: {
-  fontFamily: FONTS.bold,
-  fontSize: FONTS.caption,
-  color: COLORS.white,
-  marginLeft: SIZES.xs,
-},
-driverMarker: {
-  width: 36,
-  height: 36,
-  borderRadius: 18,
-  backgroundColor: COLORS.primary,
-  justifyContent: 'center',
-  alignItems: 'center',
-  borderWidth: 2,
-  borderColor: COLORS.white,
-},
-noDriverContainer: {
-  position: 'absolute',
-  bottom: 20,
-  left: 10,
-  right: 10,
-  backgroundColor: 'rgba(0,0,0,0.7)',
-  paddingHorizontal: SIZES.s,
-  paddingVertical: SIZES.s,
-  borderRadius: 8,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-noDriverText: {
-  fontFamily: FONTS.regular,
-  fontSize: FONTS.body3,
-  color: COLORS.white,
-  marginLeft: SIZES.xs,
-  textAlign: 'center',
 },
 });
 
